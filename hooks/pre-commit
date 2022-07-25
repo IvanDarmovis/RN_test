@@ -1,88 +1,72 @@
-#!/bin/bash
-echo "Precommit hook is running... ⏳"
-npm run lint:all
-ESLINT="$(git rev-parse --show-toplevel)/node_modules/.bin/eslint"
+#!/bin/sh
+echo "Precommit hook is running..."
+USER_NAME="user_name"
+ESLINT_MOBILE="$(git rev-parse --show-toplevel)/mobile/node_modules/.bin/eslint"
+TSLINT_BACKEND="$(git rev-parse --show-toplevel)/server/node_modules/.bin/tslint"
 
-FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^frontend)(.*)(ts$|tsx$|js$|jsx$)')
+MOBILE_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^mobile)(.*)(ts$|tsx$)')
 BACKEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^server)(.*)(ts$)')
-CONTRACTS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^contracts)(.*)(ts$)')
 PASS=true
 
 echo "=============================================================================================================="
-echo "Checking branch name... ⏳"
+echo "Checking branch name..."
 LC_ALL=C
 
 local_branch="$(git rev-parse --abbrev-ref HEAD)"
 
-valid_branch_regex="^(backend|contract|frontend)\/(feature|bug|refactoring|hotfix)\/[0-9]+\/[a-z0-9-]+$"
+valid_branch_regex="^(feature|bug|refactoring|hotfix)\/$USER_NAME\/[a-z0-9-]+$"
 
 message="
-⛔️
+\t\033[41m
 There is something wrong with your branch name. \n 
 Branch names in this project must adhere to this contract: \n 
-backend|contract|frontend/feature|bugfix|improvement|library|prerelease|release|hotfix/<task-id>/task-name. \n 
+feature|bugfix|improvement|library|prerelease|release|hotfix/$USER_NAME/feature-name. \n 
 Your commit will be rejected. You should rename your branch to a valid name and try again.
-⛔️"
+\033[0m"
 
 if [[ ! $local_branch =~ $valid_branch_regex ]]
 then
     echo "$message"
     exit 1
 fi
-echo "✅ Success! ✅"
+echo "\t\033[32m Success! \033[0m"
 
 echo "=============================================================================================================="
 echo "Staged changes:"
-echo '🔎 Frontend tracked files: ' $FRONTEND_FILES
-echo '🔎 Backend tracked files: ' $BACKEND_FILES
-echo '🔎 Contract tracked files: ' $CONTRACTS_FILES
+echo '\t\033[32mMobile tracked files:\033[0m ' $MOBILE_FILES
+echo '\t\033[32mBackend tracked files:\033[0m ' $BACKEND_FILES
 echo "=============================================================================================================="
-echo "Mobile validation started... ⏳";
-for FILE in $FRONTEND_FILES
+echo "Mobile validation started...";
+for FILE in $MOBILE_FILES
 do
-	$ESLINT "$FILE"
+	$ESLINT_MOBILE "$FILE"
   if [[ "$?" == 0 ]]; then
-    echo "✅ ESLint Passed: $FILE ✅"
+    echo "\t\033[32m ESLint Passed: $FILE \033[0m"
   else
-    echo "⛔️ ESLint Failed: $FILE ⛔️"
+    echo "\t\033[41m ESLint Failed: $FILE \033[0m"
     PASS=false
   fi
 done
 echo "=============================================================================================================="
-echo "Backend validation started... ⏳";
+echo "Backend validation started...";
 
 for FILE in $BACKEND_FILES
 do
-	$ESLINT "$FILE"
+	$TSLINT_BACKEND --project server/tslint.json $FILE
   if [[ "$?" == 0 ]]; then
-    echo "✅ ESLint Passed: $FILE ✅"
+    echo "\t\033[32m ESLint Passed: $FILE \033[0m"
   else
-    echo "⛔️ ESLint Failed: $FILE ⛔️"
+    echo "\t\033[41m ESLint Failed: $FILE \033[0m"
     PASS=false
   fi
 done
 echo "=============================================================================================================="
-
-echo "Contracts validation started... ⏳";
-
-for FILE in $CONTRACTS_FILES
-do
-	$ESLINT "$FILE"
-  if [[ "$?" == 0 ]]; then
-    echo "✅ ESLint Passed: $FILE ✅"
-  else
-    echo "⛔️ ESLint Failed: $FILE ⛔️"
-    PASS=false
-  fi
-done
-echo "=============================================================================================================="
-
 
 if ! $PASS; then
-  echo "⛔️ COMMIT FAILED:\n Your commit contains files that should pass ESLint but do not. Please fix the ESLint errors and try again.\n ⛔️"
+  echo "\033[41m COMMIT FAILED:\033[0m Your commit contains files that should pass ESLint but do not. Please fix the ESLint errors and try again.\n \033[0m"
   exit 1
 fi
 
-echo "✅ Success! ✅"
+echo "\t\033[32m Success! \033[0m"
 
 exit $?
